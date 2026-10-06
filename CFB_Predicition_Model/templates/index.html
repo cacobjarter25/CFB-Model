@@ -1,0 +1,583 @@
+{% extends "layout.html" %}
+
+{% macro rec(t) %}{{ t.w }}-{{ t.l }}{% if t.p %}-{{ t.p }}{% endif %}{% set n = t.w + t.l %}{% if n %} ({{ '%.0f' % (t.w / n * 100) }}%){% endif %}{% endmacro %}
+
+{% macro u(x) %}<span class="{% if x > 0.005 %}pos{% elif x < -0.005 %}neg{% endif %}">{{ '%+.2f' % x }}u</span>{% endmacro %}
+
+{% macro chip(label, p) %}{% if p %}<span class="chip {% if p.result == 'W' %}win{% elif p.result == 'L' %}loss{% else %}push{% endif %}">{{ label }}: {{ p.label }} {% if p.result == 'W' %}&#10003;{% elif p.result == 'L' %}&#10007;{% else %}(push){% endif %}</span>{% endif %}{% endmacro %}
+
+{% macro card(r, past) %}
+<div class="g-card{% if r.best and not past %} has-best{% endif %}">
+    <div class="g-top">
+        <span>{{ r.day }} &middot; {{ r.time }}</span>
+        {% if r.nonconf %}<span class="tag">Non-conference</span>{% endif %}
+    </div>
+    <table class="g-table">
+        <thead>
+            <tr><th></th><th>Vegas</th><th>Model</th><th>Proj</th><th>Win %</th>{% if past %}<th>Final</th>{% endif %}</tr>
+        </thead>
+        <tbody>
+            <tr{% if past and r.final.away>
+                r.final.home %} class="won"{% endif %}>
+                <td class="team">{% if r.away_rank %}<span class="rk">{{ r.away_rank }}</span>{% endif %}{{ r.away }}</td>
+                <td>{{ r.v_away }}</td>
+                {% if r.model %}
+                <td>{{ r.model.m_away }}</td>
+                <td>{{ '%.0f' % r.model.proj_away }}</td>
+                <td>{{ '%.0f' % ((1 - r.model.home_win) * 100) }}%</td>
+                {% else %}<td colspan="3" class="muted">no ratings</td>{% endif %}
+                {% if past %}<td class="final">{{ r.final.away }}</td>{% endif %}
+                </tr>
+                <tr{% if past and r.final.home>
+                    r.final.away %} class="won"{% endif %}>
+                    <td class="team">{% if r.home_rank %}<span class="rk">{{ r.home_rank }}</span>{% endif %}{{ r.home }}</td>
+                    <td>{{ r.v_home }}</td>
+                    {% if r.model %}
+                    <td>{{ r.model.m_home }}</td>
+                    <td>{{ '%.0f' % r.model.proj_home }}</td>
+                    <td>{{ '%.0f' % (r.model.home_win * 100) }}%</td>
+                    {% else %}<td colspan="3" class="muted">no ratings</td>{% endif %}
+                    {% if past %}<td class="final">{{ r.final.home }}</td>{% endif %}
+                    </tr>
+        </tbody>
+    </table>
+    {% if r.model %}
+    <div class="bar"><span style="width: {{ '%.0f' % (r.model.home_win * 100) }}%"></span></div>
+    {% endif %}
+    <div class="g-foot">
+        <span>O/U <b>{{ r.tot if r.tot is not none else '-' }}</b>{% if r.model %} &nbsp;|&nbsp; model <b>{{ r.model.total }}</b>{% endif %}</span>
+        {% if not past and r.ml_home is not none and r.ml_away is not none %}
+        <span>ML {{ '%+d' % r.ml_away }} / {{ '%+d' % r.ml_home }}</span>
+        {% endif %}
+    </div>
+    {% if past %}
+    <div class="chips">
+        {{ chip('Spread', r.spread_pick) }}
+        {{ chip('Total', r.total_pick) }}
+        <span class="chip {% if r.su == 'W' %}win{% else %}loss{% endif %}">Winner pick {% if r.su == 'W' %}&#10003;{% else %}&#10007;{% endif %}</span>
+        {% if r.best %}{{ chip('Best bet', r.best) }}{% endif %}
+    </div>
+    {% elif r.best %}
+    <div class="best">
+        &#9733; Best bet: <b>{{ r.best.label }}</b>
+        <span class="muted">{{ '%.0f' % (r.best.prob * 100) }}% model &middot; EV {{ '%+.2f' % r.best.ev }}u per 1u</span>
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% block content %}
+<style>
+    :root {
+        --bg: #0d0f14;
+        --panel: #161a22;
+        --line: #2a303c;
+        --ink: #e6e9f0;
+        --muted: #8b93a7;
+        --accent: #2fe0a8;
+        --accent2: #a78bfa;
+        --gold: #ffd166;
+        --green: #2fe0a8;
+        --red: #ff6b8b;
+    }
+
+    html, body {
+        background: var(--bg) !important;
+        color: var(--ink);
+        color-scheme: dark;
+    }
+
+    .navbar-inverse {
+        background: #090b0f;
+        border-color: var(--line);
+    }
+
+        .navbar-inverse .navbar-brand, .navbar-inverse .navbar-nav > li > a {
+            color: var(--muted);
+        }
+
+            .navbar-inverse .navbar-brand:hover, .navbar-inverse .navbar-nav > li > a:hover {
+                color: var(--accent);
+                background: transparent;
+            }
+
+    hr {
+        border-top-color: var(--line);
+    }
+
+    footer {
+        color: var(--muted);
+    }
+
+    .cfb {
+        color: var(--ink);
+    }
+
+        .cfb b {
+            color: #fff;
+        }
+
+        .cfb .muted {
+            color: var(--muted);
+            font-weight: normal;
+        }
+
+    .pos {
+        color: var(--green);
+    }
+
+    .neg {
+        color: var(--red);
+    }
+
+    .cfb-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: 20px 0 14px;
+    }
+
+        .cfb-head h2 {
+            margin: 0;
+            font-weight: 700;
+            color: #fff;
+        }
+
+    .week-badge {
+        color: var(--accent);
+        background: rgba(47,224,168,.10);
+        border: 1px solid var(--accent);
+        border-radius: 999px;
+        padding: 3px 12px;
+        font-size: 14px;
+        vertical-align: middle;
+        margin-left: 8px;
+        box-shadow: 0 0 12px rgba(47,224,168,.25);
+    }
+
+    .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+        .controls label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: var(--muted);
+            margin: 0;
+        }
+
+        .controls select {
+            display: block;
+            margin-top: 3px;
+            padding: 6px 10px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: var(--panel);
+            font-size: 14px;
+            color: var(--ink);
+        }
+
+            .controls select:focus {
+                outline: none;
+                border-color: var(--accent);
+            }
+
+    .alert-err {
+        background: rgba(255,107,139,.08);
+        border: 1px solid var(--red);
+        color: var(--red);
+        padding: 10px 14px;
+        border-radius: 6px;
+        margin-bottom: 14px;
+    }
+
+    .section-title {
+        margin: 26px 0 10px;
+        font-size: 18px;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    .grp {
+        margin: 28px 0 10px;
+        padding-bottom: 6px;
+        border-bottom: 2px solid var(--accent);
+        font-size: 18px;
+        font-weight: 700;
+        color: #fff;
+    }
+
+        .grp .count {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 1px 9px;
+            font-size: 12px;
+            color: var(--muted);
+            margin-left: 6px;
+        }
+
+    .top-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill,minmax(250px,1fr));
+        gap: 10px;
+    }
+
+    .top-card {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--gold);
+        border-radius: 8px;
+        padding: 10px 12px;
+        box-shadow: 0 0 14px rgba(255,209,102,.08);
+    }
+
+        .top-card .n {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--gold);
+            width: 26px;
+        }
+
+        .top-card .edge {
+            margin-left: auto;
+            font-weight: 700;
+            color: var(--green);
+            white-space: nowrap;
+        }
+
+    .summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit,minmax(150px,1fr));
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .stat {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+        text-align: center;
+    }
+
+        .stat b {
+            display: block;
+            font-size: 20px;
+        }
+
+        .stat span.lbl, .stat > span {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: var(--muted);
+        }
+
+    details.dpanel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0 14px;
+        margin-top: 8px;
+    }
+
+        details.dpanel summary {
+            cursor: pointer;
+            padding: 12px 0;
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+    .t-table {
+        width: 100%;
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+
+        .t-table th {
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: var(--muted);
+            padding: 4px 8px;
+        }
+
+        .t-table td {
+            padding: 5px 8px;
+            border-top: 1px solid var(--line);
+        }
+
+    .g-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill,minmax(340px,1fr));
+        gap: 14px;
+    }
+
+    .g-card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px 14px;
+    }
+
+        .g-card.has-best {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 1px var(--gold), 0 0 18px rgba(255,209,102,.18);
+        }
+
+    .g-top {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+    }
+
+    .tag {
+        background: #222836;
+        border-radius: 4px;
+        padding: 0 6px;
+        color: var(--accent2);
+    }
+
+    .g-table {
+        width: 100%;
+        font-size: 14px;
+    }
+
+        .g-table th {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: var(--muted);
+            font-weight: 600;
+            text-align: center;
+            padding: 2px 4px;
+        }
+
+        .g-table td {
+            text-align: center;
+            padding: 5px 4px;
+            border-top: 1px solid var(--line);
+        }
+
+            .g-table th:first-child, .g-table td.team {
+                text-align: left;
+            }
+
+            .g-table td.team {
+                font-weight: 600;
+                color: #fff;
+            }
+
+        .g-table tr.won td {
+            background: rgba(47,224,168,.10);
+        }
+
+        .g-table td.final {
+            font-weight: 700;
+            color: #fff;
+        }
+
+    .rk {
+        display: inline-block;
+        min-width: 22px;
+        text-align: center;
+        color: var(--accent);
+        border: 1px solid var(--accent);
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 0 3px;
+        margin-right: 6px;
+    }
+
+    .bar {
+        height: 5px;
+        background: #2a303c;
+        border-radius: 3px;
+        margin-top: 8px;
+        overflow: hidden;
+    }
+
+        .bar span {
+            display: block;
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent2), var(--accent));
+        }
+
+    .g-foot {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 8px;
+    }
+
+        .g-foot b {
+            color: var(--ink);
+        }
+
+    .best {
+        margin-top: 8px;
+        padding: 6px 10px;
+        background: rgba(255,209,102,.08);
+        border: 1px solid rgba(255,209,102,.35);
+        border-radius: 6px;
+        font-size: 13px;
+        color: var(--gold);
+    }
+
+    .chips {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .chip {
+        font-size: 12px;
+        border-radius: 999px;
+        padding: 2px 10px;
+        border: 1px solid var(--line);
+        color: var(--muted);
+    }
+
+        .chip.win {
+            background: rgba(47,224,168,.08);
+            border-color: var(--green);
+            color: var(--green);
+        }
+
+        .chip.loss {
+            background: rgba(255,107,139,.08);
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+    .fine {
+        font-size: 12px;
+        color: var(--muted);
+        margin: 28px 0 10px;
+    }
+</style>
+
+<div class="cfb">
+    {% if static_build %}
+    <script>
+function go() {
+          var v = document.getElementById('sel-view').value;
+          var s = document.getElementById('sel-show').selectedOptions[0].getAttribute('data-slug');
+          window.location.href = (v === 'current' && s === 'all') ? 'index.html' : (v + '-' + s + '.html');
+}
+    </script>
+    {% endif %}
+
+    {% if error %}<div class="alert-err">{{ error }}</div>{% endif %}
+
+    {% if mode == 'past' and summary %}
+    <div class="summary">
+        <div class="stat"><b>{{ rec(summary.ats) }}</b><span>Spread picks</span></div>
+        <div class="stat"><b>{{ rec(summary.ou) }}</b><span>Over/under picks</span></div>
+        <div class="stat"><b>{{ rec(summary.su) }}</b><span>Winner picks</span></div>
+        <div class="stat"><b>{{ rec(summary.best) }}</b><span>Best bets</span></div>
+    </div>
+    {% endif %}
+
+    {% if tracker and tracker.weeks %}
+    <div class="section-title">Units tracker <span class="muted">(1u on every best bet)</span></div>
+    <div class="summary">
+        <div class="stat"><b>{{ u(tracker.units) }}</b><span>Season total</span></div>
+        <div class="stat"><b>{{ '%+.1f' % (tracker.roi * 100) }}%</b><span>ROI on {{ tracker.bets }} bets</span></div>
+        <div class="stat"><b>{{ u(tracker.top_units) }}</b><span>Top play each week only</span></div>
+    </div>
+    <details class="dpanel">
+        <summary>Week by week</summary>
+        <table class="t-table">
+            <thead><tr><th>Week</th><th>Bets</th><th>Record</th><th>Units</th><th>Running</th><th>Top play</th><th>Top units</th><th>Top running</th></tr></thead>
+            <tbody>
+                {% for t in tracker.weeks %}
+                <tr>
+                    <td>{{ t.week }}</td>
+                    <td>{{ t.n }}</td>
+                    <td>{{ t.w }}-{{ t.l }}{% if t.p %}-{{ t.p }}{% endif %}</td>
+                    <td>{{ u(t.units) }}</td>
+                    <td>{{ u(t.running) }}</td>
+                    <td class="muted">{{ t.top_label or '-' }}</td>
+                    <td>{{ u(t.top_units) }}</td>
+                    <td>{{ u(t.top_running) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="muted" style="margin-bottom:10px">Assumes -110 on every spread and total (a win pays +0.91u) and uses the consensus line. Only weeks 1 onward of this season are graded.</div>
+    </details>
+    {% endif %}
+
+    {% if mode == 'current' and top %}
+    <div class="section-title">Top plays</div>
+    <div class="top-grid">
+        {% for r in top %}
+        <div class="top-card">
+            <div class="n">{{ loop.index }}</div>
+            <div><b>{{ r.best.label }}</b><br><span class="muted">{{ r.best.game }} &middot; {{ r.day }}</span></div>
+            <div class="edge">EV {{ '%+.2f' % r.ev }}u</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if mode == 'current' and show == 'ap' %}
+    <div class="section-title">AP Top 25</div>
+    {% if ap_panel %}
+    <details class="dpanel" open>
+        <summary>Poll{% if ap_week %} <span class="muted">(week {{ ap_week }})</span>{% endif %}</summary>
+        <table class="t-table">
+            <thead><tr><th>#</th><th>Team</th><th>Conf</th><th>This week</th><th>Vegas</th><th>Model</th></tr></thead>
+            <tbody>
+                {% for t in ap_panel %}
+                <tr>
+                    <td><span class="rk">{{ t.rank }}</span></td>
+                    <td><b>{{ t.school }}</b></td>
+                    <td class="muted">{{ t.conf or '' }}</td>
+                    {% if t.game %}
+                    <td>{{ t.game.where }} {{ t.game.opp }} <span class="muted">({{ t.game.day }})</span>{% if t.game.best %} <span style="color:var(--gold)">&#9733;</span>{% endif %}</td>
+                    <td>{{ t.game.vegas }}</td>
+                    <td>{{ t.game.model if t.game.model else '-' }}</td>
+                    {% else %}
+                    <td class="muted" colspan="3">not on this week's board</td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </details>
+    {% else %}
+    <p class="muted">AP poll unavailable. Check that CFBD_API_KEY is set in your .env file.</p>
+    {% endif %}
+    {% endif %}
+
+    {% if groups %}
+    {% for title, grows in groups %}
+    <div class="grp">{{ title }} <span class="count">{{ grows|length }}</span></div>
+    <div class="g-grid">
+        {% for r in grows %}{{ card(r, mode == 'past') }}{% endfor %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <p>No games found for this selection.</p>
+    {% endif %}
+
+    <p class="fine">Model settings are untested estimates and projections are for information only, not betting advice. Past-week results use the ratings as they stood before each week. EV = expected profit per 1u risked. Proj = projected points, Win % = chance to win, bar = home team's share.</p>
+</div>
+{% endblock %}
