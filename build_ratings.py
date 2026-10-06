@@ -173,6 +173,17 @@ def build_history(snaps, avg, ap_by_week):
             "overall": {"ats": tally(all_ats), "ou": tally(all_ou),
                         "su": tally(all_su), "best": tally(all_best)}}
 
+def fetch_logos():
+    out = {}
+    try:
+        for t in get("/teams/fbs", year=CURRENT):
+            logos = t.get("logos") or []
+            if logos:
+                out[t["school"]] = logos[0].replace("http://", "https://")
+    except Exception as e:
+        print("Could not load team logos:", e)
+    return out
+
 
 if __name__ == "__main__":
     games, conf = fetch_games()

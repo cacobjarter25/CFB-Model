@@ -44,5 +44,9 @@ def get_conference(name):
     return match(name, _load("ratings.json").get("conferences", {}))
 
 
+def get_logo(name):
+    return match(name, _load("ratings.json").get("logos", {}))
+
+
 def load_history():
     return _load("history.json")

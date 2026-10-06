@@ -1,0 +1,71 @@
+<style>
+    :root {
+        --bg: #0d0f14;
+        --panel: #161a22;
+        --line: #2a303c;
+        --ink: #e6e9f0;
+        --muted: #8b93a7;
+        --accent: #2fe0a8;
+    }
+
+    html, body {
+        background: var(--bg) !important;
+        color: var(--ink);
+        color-scheme: dark;
+    }
+
+    .navbar-inverse {
+        background: #090b0f;
+        border-color: var(--line);
+    }
+
+        .navbar-inverse .navbar-brand, .navbar-inverse .navbar-nav > li > a {
+            color: var(--muted);
+        }
+
+            .navbar-inverse .navbar-brand:hover, .navbar-inverse .navbar-nav > li > a:hover {
+                color: var(--accent);
+                background: transparent;
+            }
+
+    hr {
+        border-top-color: var(--line);
+    }
+
+    footer {
+        color: var(--muted);
+    }
+
+    .page {
+        max-width: 760px;
+        margin: 28px 0;
+    }
+
+        .page h2 {
+            color: #fff;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .page h3 {
+            color: var(--accent);
+            font-size: 18px;
+            margin-top: 26px;
+        }
+
+        .page p, .page li {
+            color: var(--ink);
+            line-height: 1.6;
+        }
+
+        .page a {
+            color: var(--accent);
+        }
+
+    .box {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 14px 18px;
+    }
+</style>

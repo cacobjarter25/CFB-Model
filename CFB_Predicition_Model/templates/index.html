@@ -19,7 +19,7 @@
         <tbody>
             <tr{% if past and r.final.away>
                 r.final.home %} class="won"{% endif %}>
-                <td class="team">{% if r.away_rank %}<span class="rk">{{ r.away_rank }}</span>{% endif %}{{ r.away }}</td>
+                <td class="team">{% if r.away_logo %}<img class="logo" src="{{ r.away_logo }}" alt="" loading="lazy">{% endif %}{% if r.away_rank %}<span class="rk">{{ r.away_rank }}</span>{% endif %}{{ r.away }}</td>
                 <td>{{ r.v_away }}</td>
                 {% if r.model %}
                 <td>{{ r.model.m_away }}</td>
@@ -30,7 +30,7 @@
                 </tr>
                 <tr{% if past and r.final.home>
                     r.final.away %} class="won"{% endif %}>
-                    <td class="team">{% if r.home_rank %}<span class="rk">{{ r.home_rank }}</span>{% endif %}{{ r.home }}</td>
+                    <td class="team">{% if r.home_logo %}<img class="logo" src="{{ r.home_logo }}" alt="" loading="lazy">{% endif %}{% if r.home_rank %}}</span>{% endif %}{{ r.home }}</td>
                     <td>{{ r.v_home }}</td>
                     {% if r.model %}
                     <td>{{ r.model.m_home }}</td>
@@ -465,10 +465,19 @@
             color: var(--red);
         }
 
+    .logo {
+        width: 22px;
+        height: 22px;
+        object-fit: contain;
+        vertical-align: middle;
+        margin-right: 6px;
+        background: #fff;
+        border-radius: 50%;
+        padding: 2px;
+    }
+
     .fine {
         font-size: 12px;
-        color: var(--muted);
-        margin: 28px 0 10px;
     }
 </style>
 

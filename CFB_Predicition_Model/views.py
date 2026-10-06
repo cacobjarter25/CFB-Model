@@ -9,7 +9,7 @@ from CFB_Predicition_Model import app
 from CFB_Predicition_Model.engine import picks
 from CFB_Predicition_Model.engine.board import build_board
 from CFB_Predicition_Model.engine.cfbd import ap_top25, week_of, fmt_kickoff
-from CFB_Predicition_Model.engine.ratings import load_history, get_conference
+from CFB_Predicition_Model.engine.ratings import load_history, get_conference, get_logo
 
 CONF_PRIORITY = ["SEC", "Big Ten", "Big 12", "ACC"]
 
@@ -145,7 +145,7 @@ def home():
     for r in rows:
         r.setdefault("ev", -1)
         r["day"], r["time"] = fmt_kickoff(r["start"])
-        r["confs"] = _row_confs(r)
+        r["confs"] = _row_confs(r); r["home_logo"] = get_logo(r["home"]); r["away_logo"] = get_logo(r["away"])
         for c in r["confs"]:
             conf_counts[c] = conf_counts.get(c, 0) + 1
 

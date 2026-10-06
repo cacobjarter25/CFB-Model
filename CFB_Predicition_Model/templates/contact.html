@@ -1,20 +1,12 @@
 {% extends "layout.html" %}
-
 {% block content %}
-
-<h2>{{ title }}.</h2>
-<h3>{{ message }}</h3>
-
-<address>
-    One Microsoft Way<br />
-    Redmond, WA 98052-6399<br />
-    <abbr title="Phone">P:</abbr>
-    425.555.0100
-</address>
-
-<address>
-    <strong>Support:</strong>   <a href="mailto:Support@example.com">Support@example.com</a><br />
-    <strong>Marketing:</strong> <a href="mailto:Marketing@example.com">Marketing@example.com</a>
-</address>
-
+{% include "_theme.html" %}
+<div class="page">
+    <h2>Contact</h2>
+    <p>Questions, bug reports, or ideas for the model are welcome.</p>
+    <div class="box">
+        <p><b>Email:</b> <a href="mailto:VegasLinezAnalysis@gmail.com">VegasLinezAnalysis@gmail.com</a></p>
+        <p><b>Code and issues:</b> <a href="https://github.com/cacobjarter25/CFB-Model">github.com/cacobjarter25/CFB-Model</a></p>
+    </div>
+</div>
 {% endblock %}

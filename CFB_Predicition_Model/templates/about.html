@@ -1,10 +1,25 @@
 {% extends "layout.html" %}
-
 {% block content %}
+{% include "_theme.html" %}
+<div class="page">
+    <h2>About this model</h2>
+    <p>This site projects college football games and compares its numbers to the current Vegas lines.</p>
 
-<h2>{{ title }}.</h2>
-<h3>{{ message }}</h3>
+    <h3>How it works</h3>
+    <ul>
+        <li>Every team gets an offense and a defense rating built from past game scores.</li>
+        <li>Each game is simulated 20,000 times to produce a projected spread, total, score, and win chance.</li>
+        <li>Early in the season the model leans heavily on the Vegas lines and gradually trusts its own numbers more as results come in.</li>
+        <li>Best bets are limited to spreads and totals (and moneylines priced near even money), ranked by expected return per 1 unit risked, with a cap on how many appear each week.</li>
+        <li>The units tracker shows what 1 unit on every best bet would have returned, assuming -110 prices.</li>
+    </ul>
 
-<p>Use this area to provide additional information.</p>
+    <h3>Data</h3>
+    <p>Odds come from The Odds API. Schedules, results, rankings, and logos come from CollegeFootballData.com. Odds refresh about every 6 hours.</p>
 
+    <h3>Please note</h3>
+    <div class="box">
+        <p>This is a hobby project for information and entertainment, not betting advice. The model settings are untested estimates and past results do not predict future results. If gambling is a problem for you, call 1-800-GAMBLER.</p>
+    </div>
+</div>
 {% endblock %}
